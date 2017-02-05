@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
 
-namespace Microsoft.Bot.Sample.PizzaBot
+namespace Bot_Application4
 {
     public static class WebApiConfig
     {

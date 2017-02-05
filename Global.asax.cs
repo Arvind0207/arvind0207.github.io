@@ -5,7 +5,7 @@ using System.Web;
 using System.Web.Http;
 using System.Web.Routing;
 
-namespace Microsoft.Bot.Sample.PizzaBot
+namespace Bot_Application4
 {
     public class WebApiApplication : System.Web.HttpApplication
     {

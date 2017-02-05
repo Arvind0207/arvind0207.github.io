@@ -1,78 +1,69 @@
-﻿using System.Web.Http;
-using System.Threading.Tasks;
-
-using Microsoft.Bot.Connector;
-using Microsoft.Bot.Builder.FormFlow;
-using Microsoft.Bot.Builder.Dialogs;
-using System.Web.Http.Description;
+﻿using System;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
-using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Web.Http;
+using System.Web.Http.Description;
+using Microsoft.Bot.Connector;
+using Newtonsoft.Json;
 
-namespace Microsoft.Bot.Sample.PizzaBot
+namespace Bot_Application4
 {
     [BotAuthentication]
     public class MessagesController : ApiController
     {
-        private static IForm<PizzaOrder> BuildForm()
-        {
-            var builder = new FormBuilder<PizzaOrder>();
-
-            ActiveDelegate<PizzaOrder> isBYO = (pizza) => pizza.Kind == PizzaOptions.BYOPizza;
-            ActiveDelegate<PizzaOrder> isSignature = (pizza) => pizza.Kind == PizzaOptions.SignaturePizza;
-            ActiveDelegate<PizzaOrder> isGourmet = (pizza) => pizza.Kind == PizzaOptions.GourmetDelitePizza;
-            ActiveDelegate<PizzaOrder> isStuffed = (pizza) => pizza.Kind == PizzaOptions.StuffedPizza;
-
-            return builder
-                // .Field(nameof(PizzaOrder.Choice))
-                .Field(nameof(PizzaOrder.Size))
-                .Field(nameof(PizzaOrder.Kind))
-                .Field("BYO.Crust", isBYO)
-                .Field("BYO.Sauce", isBYO)
-                .Field("BYO.Toppings", isBYO)
-                .Field(nameof(PizzaOrder.GourmetDelite), isGourmet)
-                .Field(nameof(PizzaOrder.Signature), isSignature)
-                .Field(nameof(PizzaOrder.Stuffed), isStuffed)
-                .AddRemainingFields()
-                .Confirm("Would you like a {Size}, {BYO.Crust} crust, {BYO.Sauce}, {BYO.Toppings} pizza?", isBYO)
-                .Confirm("Would you like a {Size}, {&Signature} {Signature} pizza?", isSignature, dependencies: new string[] { "Size", "Kind", "Signature" })
-                .Confirm("Would you like a {Size}, {&GourmetDelite} {GourmetDelite} pizza?", isGourmet)
-                .Confirm("Would you like a {Size}, {&Stuffed} {Stuffed} pizza?", isStuffed)
-                .Build()
-                ;
-        }
-
-        internal static IDialog<PizzaOrder> MakeRoot()
-        {
-            return Chain.From(() => new PizzaOrderDialog(BuildForm));
-        }
-
         /// <summary>
         /// POST: api/Messages
-        /// receive a message from a user and send replies
+        /// Receive a message from a user and reply to it
         /// </summary>
-        /// <param name="activity"></param>
-        [ResponseType(typeof(void))]
-        public virtual async Task<HttpResponseMessage> Post([FromBody] Activity activity)
+        public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
-            if (activity != null)
+            if (activity.Type == ActivityTypes.Message)
             {
-                // one of these will have an interface and process it
-                switch (activity.GetActivityType())
-                {
-                    case ActivityTypes.Message:
-                        await Conversation.SendAsync(activity, MakeRoot);
-                        break;
+                ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
+                // calculate something for us to return
+                int length = (activity.Text ?? string.Empty).Length;
 
-                    case ActivityTypes.ConversationUpdate:
-                    case ActivityTypes.ContactRelationUpdate:
-                    case ActivityTypes.Typing:
-                    case ActivityTypes.DeleteUserData:
-                    default:
-                        Trace.TraceError($"Unknown activity type ignored: {activity.GetActivityType()}");
-                        break;
-                }
+                // return our reply to the user
+                Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
+                await connector.Conversations.ReplyToActivityAsync(reply);
             }
-            return new HttpResponseMessage(System.Net.HttpStatusCode.Accepted);
+            else
+            {
+                HandleSystemMessage(activity);
+            }
+            var response = Request.CreateResponse(HttpStatusCode.OK);
+            return response;
+        }
+
+        private Activity HandleSystemMessage(Activity message)
+        {
+            if (message.Type == ActivityTypes.DeleteUserData)
+            {
+                // Implement user deletion here
+                // If we handle user deletion, return a real message
+            }
+            else if (message.Type == ActivityTypes.ConversationUpdate)
+            {
+                // Handle conversation state changes, like members being added and removed
+                // Use Activity.MembersAdded and Activity.MembersRemoved and Activity.Action for info
+                // Not available in all channels
+            }
+            else if (message.Type == ActivityTypes.ContactRelationUpdate)
+            {
+                // Handle add/remove from contact lists
+                // Activity.From + Activity.Action represent what happened
+            }
+            else if (message.Type == ActivityTypes.Typing)
+            {
+                // Handle knowing tha the user is typing
+            }
+            else if (message.Type == ActivityTypes.Ping)
+            {
+            }
+
+            return null;
         }
     }
 }
